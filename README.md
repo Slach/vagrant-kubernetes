@@ -1,2 +1,2 @@
 # vagrant-kubernetes
-k8s 1.13, coredns, kube-router, bootstrap over kubeadm
+This box contains Kubernetes latest stable version 1.13, cri-o / docker

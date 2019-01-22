@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+set -exuv -o pipefail
+
+K8S_VERSION=1.13
+CRIO_VERSION=1.12
+USE_DOCKER=False
+LOCAL_ETCD=False
+
+export DEBIAN_FRONTEND=noninteractive
+# Overwrite DNS resolvers
+grep -q -x -F "supersede domain-name-servers 1.1.1.1, 8.8.8.8;" /etc/dhcp/dhclient.conf || echo "supersede domain-name-servers 1.1.1.1, 8.8.8.8;" >> /etc/dhcp/dhclient.conf
+printf "nameserver 1.1.1.1\nnameserver 8.8.8.8\n" > /etc/resolv.conf
+
+swapoff -a
+apt-get -y update
+apt-get -y upgrade
+apt-get install -y apt-transport-https
+
+#CPU performance governor
+if [ -f /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ]; then
+    systemctl disable ondemand
+    apt-get install -y cpufrequtils
+    echo 'GOVERNOR="performance"' | tee /etc/default/cpufrequtils
+    cpufreq-set --governor performance
+fi
+
+# docker
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 8D81803C0EBFCD88
+echo "deb https://download.docker.com/linux/ubuntu bionic edge" > /etc/apt/sources.list.d/docker.list
+# cri-o
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 018BA5AD9DF57A4448F0E6CF8BECF1637AD8C79D
+echo "deb http://ppa.launchpad.net/projectatomic/ppa/ubuntu bionic main" > /etc/apt/sources.list.d/crio.list
+# kubernetes
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" > /etc/apt/sources.list.d/kubernetes.list
+# yq
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 9A2D61F6BB03CED7522B8E7D6657DBE0CC86BB64
+echo "deb http://ppa.launchpad.net/rmescandon/yq/ubuntu bionic main" > /etc/apt/sources.list.d/yq.list
+
+apt-get update
+apt-get purge -y snapd rsyslog
+apt-get install -y jq yq ethtool mc htop
+
+# rq for TOML parsing
+# curl -sL https://github.com/dflemstr/rq/releases/download/v0.10.4/record-query-v0.10.4-x86_64-unknown-linux-gnu.tar.gz | tar --verbose -zxvf - --transform "flags=r;s|x86_64-unknown-linux-gnu/rq|rq|" -C /usr/local/bin x86_64-unknown-linux-gnu/rq
+
+apt-get install -y ipvsadm
+modprobe ip_vs ip_vs_rr ip_vs_wrr ip_vs_sh
+modprobe overlay br_netfilter
+# Setup cri-o sysctl params, these persist across reboots.
+cat > /etc/sysctl.d/99-kubernetes.conf <<EOF
+net.bridge.bridge-nf-call-iptables  = 1
+net.ipv4.ip_forward                 = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+EOF
+
+sysctl --system
+
+if [[ "${USE_DOCKER}" == "False" ]]; then
+    apt-get install -y cri-o-${CRIO_VERSION}=${CRIO_VERSION}*
+else
+    apt-get install -y --no-install-recommends python-pip
+    apt-get install -y docker-ce
+    pip install -U setuptools
+    python -m pip install -U pip
+    pip2 install -U docker-compose
+fi
+
+apt-get install -y kubelet=${K8S_VERSION}* kubeadm=${K8S_VERSION}* kubectl=${K8S_VERSION}* kubernetes-cni
+
+
+apt-get install -y bash-completion
+kubectl completion bash > /etc/bash_completion.d/kubectl
+
+systemctl enable kubelet
+systemctl start kubelet
+
+if [[ "${LOCAL_ETCD}" == "False" ]]; then
+    systemctl disable etcd || true
+else
+    apt-get install -y etcd
+    systemctl enable etcd
+fi
+
+if [[ "${USE_DOCKER}" == "False" ]]; then
+    # https://github.com/kubernetes/kubeadm/issues/874, cgroup-driver=systemd DEPRECATED
+    echo "KUBELET_EXTRA_ARGS=--cgroup-driver=systemd --container-runtime-endpoint=unix:///var/run/crio/crio.sock --image-pull-progress-deadline=10m --image-service-endpoint=unix:///var/run/crio/crio.sock" > /etc/default/kubelet
+    # TODO add my private registries
+    sed -i -e '/^#registries = \[$/,/^#\]$/s/^#//g' /etc/crio/crio.conf
+    systemctl enable crio
+    systemctl start crio
+    kubeadm config images pull -v 2 --cri-socket=/var/run/crio/crio.sock
+    crictl pull docker.io/cloudnativelabs/kube-router:latest
+else
+    echo "KUBELET_EXTRA_ARGS=--image-pull-progress-deadline=10m" > /etc/default/kubelet
+    systemctl enable docker
+    systemctl start docker
+    kubeadm config images pull -v 2
+    docker pull docker.io/cloudnativelabs/kube-router:latest
+fi
+
+
