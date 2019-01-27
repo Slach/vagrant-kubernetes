@@ -25,6 +25,10 @@ Vagrant.configure(2) do |config|
     end
 
     # Enable provisioning with a shell script.
-    config.vm.provision "shell", :privileged => true, path: "install-k8s.sh"
-    config.vm.provision "shell", :privileged => true, path: "vagrant-box-clean.sh"
+    if ENV['SCRIPT']
+        config.vm.provision "shell", :privileged => true, path: ENV['SCRIPT']
+    else
+       config.vm.provision "shell", :privileged => true, path: "scripts/install-k8s.sh"
+       config.vm.provision "shell", :privileged => true, path: "scripts/vagrant/box-clean.sh"
+    end
 end

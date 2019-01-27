@@ -3,6 +3,7 @@ set -exuv -o pipefail
 
 K8S_VERSION=1.13
 CRIO_VERSION=1.12
+IMG_VERSION=0.5.6
 USE_DOCKER=False
 LOCAL_ETCD=False
 
@@ -24,25 +25,34 @@ if [ -f /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ]; then
     cpufreq-set --governor performance
 fi
 
+# docker, cri-o, yq
+apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 8D81803C0EBFCD88 018BA5AD9DF57A4448F0E6CF8BECF1637AD8C79D 9A2D61F6BB03CED7522B8E7D6657DBE0CC86BB64
+
 # docker
-apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 8D81803C0EBFCD88
+# apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 8D81803C0EBFCD88
 echo "deb https://download.docker.com/linux/ubuntu bionic edge" > /etc/apt/sources.list.d/docker.list
 # cri-o
-apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 018BA5AD9DF57A4448F0E6CF8BECF1637AD8C79D
+# apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 018BA5AD9DF57A4448F0E6CF8BECF1637AD8C79D
 echo "deb http://ppa.launchpad.net/projectatomic/ppa/ubuntu bionic main" > /etc/apt/sources.list.d/crio.list
 # kubernetes
 curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
 echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" > /etc/apt/sources.list.d/kubernetes.list
 # yq
-apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 9A2D61F6BB03CED7522B8E7D6657DBE0CC86BB64
+# apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 9A2D61F6BB03CED7522B8E7D6657DBE0CC86BB64
 echo "deb http://ppa.launchpad.net/rmescandon/yq/ubuntu bionic main" > /etc/apt/sources.list.d/yq.list
 
 apt-get update
-apt-get purge -y snapd rsyslog
+apt-get purge -y snapd rsyslog puppet* chef* cloud*
 apt-get install -y jq yq ethtool mc htop
 
 # rq for TOML parsing
 # curl -sL https://github.com/dflemstr/rq/releases/download/v0.10.4/record-query-v0.10.4-x86_64-unknown-linux-gnu.tar.gz | tar --verbose -zxvf - --transform "flags=r;s|x86_64-unknown-linux-gnu/rq|rq|" -C /usr/local/bin x86_64-unknown-linux-gnu/rq
+
+# img, TODO make .deb package?
+curl -sL -o /usr/local/bin/img https://github.com/genuinetools/img/releases/download/v${IMG_VERSION}/img-linux-amd64
+curl -sL -o /usr/local/bin/img.sha256 https://github.com/genuinetools/img/releases/download/v${IMG_VERSION}/img-linux-amd64.sha256
+sed -i "s/\/home\/travis\/gopath\/src\/github.com\/genuinetools\/img\/cross\/img\-linux\-amd64/\/usr\/local\/bin\/img/g" /usr/local/bin/img.sha256
+sha256sum -c /usr/local/bin/img.sha256
 
 apt-get install -y ipvsadm
 modprobe ip_vs ip_vs_rr ip_vs_wrr ip_vs_sh
@@ -61,8 +71,8 @@ if [[ "${USE_DOCKER}" == "False" ]]; then
 else
     apt-get install -y --no-install-recommends python-pip
     apt-get install -y docker-ce
-    pip install -U setuptools
     python -m pip install -U pip
+    pip install -U setuptools
     pip2 install -U docker-compose
 fi
 
@@ -91,12 +101,14 @@ if [[ "${USE_DOCKER}" == "False" ]]; then
     systemctl start crio
     kubeadm config images pull -v 2 --cri-socket=/var/run/crio/crio.sock
     crictl pull docker.io/cloudnativelabs/kube-router:latest
+    crictl pull docker.io/aquasec/kube-bench:latest
 else
     echo "KUBELET_EXTRA_ARGS=--image-pull-progress-deadline=10m" > /etc/default/kubelet
     systemctl enable docker
     systemctl start docker
     kubeadm config images pull -v 2
     docker pull docker.io/cloudnativelabs/kube-router:latest
+    docker pull docker.io/aquasec/kube-bench:latest
 fi
 
 
