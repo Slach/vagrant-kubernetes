@@ -42,7 +42,7 @@ echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" > /etc/apt/sources.
 echo "deb http://ppa.launchpad.net/rmescandon/yq/ubuntu bionic main" > /etc/apt/sources.list.d/yq.list
 
 apt-get update
-apt-get purge -y snapd rsyslog puppet* chef* cloud*
+apt-get purge -y snapd puppet* chef* cloud*
 apt-get install -y jq yq ethtool mc htop
 
 # rq for TOML parsing
