@@ -2,20 +2,17 @@
 set -exuv -o pipefail
 
 K8S_VERSION=1.13
-CRIO_VERSION=1.12
+CRIO_VERSION=1.13
 IMG_VERSION=0.5.6
 USE_DOCKER=False
 LOCAL_ETCD=False
 
 export DEBIAN_FRONTEND=noninteractive
-# Overwrite DNS resolvers
-grep -q -x -F "supersede domain-name-servers 1.1.1.1, 8.8.8.8;" /etc/dhcp/dhclient.conf || echo "supersede domain-name-servers 1.1.1.1, 8.8.8.8;" >> /etc/dhcp/dhclient.conf
-printf "nameserver 1.1.1.1\nnameserver 8.8.8.8\n" > /etc/resolv.conf
 
 swapoff -a
 apt-get -y update
 apt-get -y upgrade
-apt-get install -y apt-transport-https
+apt-get install -y apt-transport-https ntp
 
 #CPU performance governor
 if [ -f /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ]; then
