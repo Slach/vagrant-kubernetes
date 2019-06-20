@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -exuv -o pipefail
 
-K8S_VERSION=1.13
-CRIO_VERSION=1.13
-IMG_VERSION=0.5.6
-USE_DOCKER=False
+K8S_VERSION=1.15
+CRIO_VERSION=1.14
+IMG_VERSION=0.5.7
+USE_DOCKER=True
 LOCAL_ETCD=False
 
 export DEBIAN_FRONTEND=noninteractive

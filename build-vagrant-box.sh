@@ -5,7 +5,7 @@ vagrant destroy -f
 vagrant up --provision
 
 VAGRANT_CLOUD_BOX=Slach/vagrant-kubernetes
-VERSION=1.13.4
+VERSION=1.15.0
 TMPDIR=$(mktemp -d)
 K8S_VAGRANT=${TMPDIR}/k8s-vagrant
 if [[ "$OSTYPE" == cygwin* ]]; then
