@@ -2,9 +2,11 @@
 set -exuv -o pipefail
 
 K8S_VERSION=1.15
-CRIO_VERSION=1.14
+# TODO don't use crio before resolve https://github.com/cri-o/cri-o/issues/2547
+CRIO_VERSION=1.13
+CONTAINERD_VERSION=1.2.6
 IMG_VERSION=0.5.7
-USE_DOCKER=True
+USE_CRI="containerd" # avaiable varants "docker", "crio", "containerd"
 LOCAL_ETCD=False
 
 export DEBIAN_FRONTEND=noninteractive
@@ -54,7 +56,7 @@ sha256sum -c /usr/local/bin/img.sha256
 apt-get install -y ipvsadm
 modprobe ip_vs ip_vs_rr ip_vs_wrr ip_vs_sh
 modprobe overlay br_netfilter
-# Setup cri-o sysctl params, these persist across reboots.
+# Setup required sysctl params, these persist across reboots.
 cat > /etc/sysctl.d/99-kubernetes.conf <<EOF
 net.bridge.bridge-nf-call-iptables  = 1
 net.ipv4.ip_forward                 = 1
@@ -63,14 +65,31 @@ EOF
 
 sysctl --system
 
-if [[ "${USE_DOCKER}" == "False" ]]; then
+if [[ "${USE_CRI}" == "crio" ]]; then
     apt-get install -y cri-o-${CRIO_VERSION}=${CRIO_VERSION}*
-else
+elif [[ "${USE_CRI}" == "containerd" ]]; then
+    apt-get install -y containerd.io
+elif [[ "${USE_CRI}" == "docker" ]]; then
     apt-get install -y --no-install-recommends python-pip
     apt-get install -y docker-ce
     python -m pip install -U pip
     pip install -U setuptools
     pip2 install -U docker-compose
+fi
+
+systemctl stop docker  || true
+systemctl stop containerd || true
+systemctl stop crio || true
+systemctl disable crio || true
+systemctl disable docker || true
+systemctl disable containerd || true
+
+if [[ "${USE_CRI}" == "crio" ]]; then
+    systemctl enable crio
+elif [[ "${USE_CRI}" == "containerd" ]]; then
+    systemctl enable containerd
+elif [[ "${USE_CRI}" == "docker" ]]; then
+    systemctl enable docker
 fi
 
 apt-get install -y kubelet=${K8S_VERSION}* kubeadm=${K8S_VERSION}* kubectl=${K8S_VERSION}* kubernetes-cni
@@ -80,7 +99,6 @@ apt-get install -y bash-completion
 kubectl completion bash > /etc/bash_completion.d/kubectl
 
 systemctl enable kubelet
-systemctl start kubelet
 
 if [[ "${LOCAL_ETCD}" == "False" ]]; then
     systemctl disable etcd || true
@@ -89,23 +107,40 @@ else
     systemctl enable etcd
 fi
 
-if [[ "${USE_DOCKER}" == "False" ]]; then
+if [[ "${USE_CRI}" == "crio" ]]; then
+cat > /etc/crictl.yaml <<EOF
+runtime-endpoint: unix:///var/run/crio/crio.sock
+image-endpoint: unix:///var/run/crio/crio.sock
+timeout: 10
+debug: false
+EOF
+
     # https://github.com/kubernetes/kubeadm/issues/874, cgroup-driver=systemd DEPRECATED
     echo "KUBELET_EXTRA_ARGS=--cgroup-driver=systemd --container-runtime-endpoint=unix:///var/run/crio/crio.sock --image-pull-progress-deadline=10m --image-service-endpoint=unix:///var/run/crio/crio.sock" > /etc/default/kubelet
     # TODO add my private registries
     sed -i -e '/^#registries = \[$/,/^#\]$/s/^#//g' /etc/crio/crio.conf
-    systemctl enable crio
-    systemctl start crio
+    systemctl restart crio
     kubeadm config images pull -v 2 --cri-socket=/var/run/crio/crio.sock
     crictl pull docker.io/cloudnativelabs/kube-router:latest
     crictl pull docker.io/aquasec/kube-bench:latest
-else
+elif [[ "${USE_CRI}" == "containerd" ]]; then
+cat > /etc/crictl.yaml <<EOF
+runtime-endpoint: unix:///run/containerd/containerd.sock
+image-endpoint: unix:///run/containerd/containerd.sock
+timeout: 10
+debug: false
+EOF
+
+    echo "KUBELET_EXTRA_ARGS=--container-runtime-endpoint=unix:///run/containerd/containerd.sock --image-pull-progress-deadline=10m" > /etc/default/kubelet
+    containerd config default > /etc/containerd/config.toml
+    systemctl restart containerd
+    kubeadm config images pull -v 2 --cri-socket=/run/containerd/containerd.sock
+    crictl images pull docker.io/cloudnativelabs/kube-router:latest
+    crictl images pull docker.io/aquasec/kube-bench:latest
+elif [[ "${USE_CRI}" == "docker" ]]; then
     echo "KUBELET_EXTRA_ARGS=--image-pull-progress-deadline=10m" > /etc/default/kubelet
-    systemctl enable docker
-    systemctl start docker
+    systemctl restart docker
     kubeadm config images pull -v 2
     docker pull docker.io/cloudnativelabs/kube-router:latest
     docker pull docker.io/aquasec/kube-bench:latest
 fi
-
-
