@@ -47,7 +47,7 @@ else
 fi
 
 vagrant cloud auth login
-vagrant cloud publish ${VAGRANT_CLOUD_BOX} ${VERSION} virtualbox ${VBOX_FILE} -f -d "Ubuntu/bionic64 with installed (but not configured) kubernetes, kubeadm, cri-o, containerd, docker-ce, img" --release --short-description "Ubuntu/bionic64 with installed (but not configured) kubernetes, kubeadm, cri-o, containerd, docker-ce, img"
+vagrant cloud publish ${VAGRANT_CLOUD_BOX} ${VERSION} virtualbox ${VBOX_FILE} -f -d "Ubuntu/bionic64 with installed (but not configured) kubernetes, kubeadm, cri-o, containerd, docker-ce, img, k9s" --release --short-description "Ubuntu/bionic64 with installed (but not configured) kubernetes, kubeadm, cri-o, containerd, docker-ce, img, k9s"
 rm -rfv "${K8S_VAGRANT}"
 
 vagrant box remove -f Slach/vagrant-kubernetes || true

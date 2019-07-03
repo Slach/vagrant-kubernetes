@@ -8,6 +8,7 @@ CONTAINERD_VERSION=1.2.6
 IMG_VERSION=0.5.7
 USE_CRI="containerd" # avaiable varants "docker", "crio", "containerd"
 LOCAL_ETCD=False
+K9S_VERSION=0.7.11
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -52,6 +53,14 @@ curl -sL -o /usr/local/bin/img https://github.com/genuinetools/img/releases/down
 curl -sL -o /usr/local/bin/img.sha256 https://github.com/genuinetools/img/releases/download/v${IMG_VERSION}/img-linux-amd64.sha256
 sed -i "s/\/home\/travis\/gopath\/src\/github.com\/genuinetools\/img\/cross\/img\-linux\-amd64/\/usr\/local\/bin\/img/g" /usr/local/bin/img.sha256
 sha256sum -c /usr/local/bin/img.sha256
+
+# k9s
+curl -sL -o /usr/local/bin/k9s_${K9S_VERSION}_Linux_x86_64.tar.gz https://github.com/derailed/k9s/releases/download/${K9S_VERSION}/k9s_${K9S_VERSION}_Linux_x86_64.tar.gz
+curl -sL https://github.com/derailed/k9s/releases/download/${K9S_VERSION}/checksums.txt | grep Linux_x86_64.tar.gz > /usr/local/bin/k9s.sha256
+sed -i "s/k9s_${K9S_VERSION}_Linux_x86_64.tar.gz/\/usr\/local\/bin\/k9s_${K9S_VERSION}_Linux_x86_64.tar.gz/g" /usr/local/bin/k9s.sha256
+sha256sum -c /usr/local/bin/k9s.sha256
+tar --verbose -zxvf /usr/local/bin/k9s_${K9S_VERSION}_Linux_x86_64.tar.gz -C /usr/local/bin k9s
+
 
 apt-get install -y ipvsadm
 modprobe ip_vs ip_vs_rr ip_vs_wrr ip_vs_sh
