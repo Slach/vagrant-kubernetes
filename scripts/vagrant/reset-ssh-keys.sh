@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -exuv -o pipefail
 
 sed -i -e "/UseDNS no/s/^#//" /etc/ssh/sshd_config
 sed -i -e "/GSSAPIAuthentication no/s/^#//" /etc/ssh/sshd_config

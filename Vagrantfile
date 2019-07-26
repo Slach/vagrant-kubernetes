@@ -22,6 +22,7 @@ Vagrant.configure(2) do |config|
         vb.customize ["modifyvm", :id, "--natdnsproxy1", "on"]
         vb.customize ["modifyvm", :id, "--nictype1", "virtio" ]
         vb.customize ["modifyvm", :id, "--nictype2", "virtio" ]
+	vb.customize [ "modifyvm", :id, "--uartmode1", "file", File.join(Dir.pwd, "vagrant-kubernetes.log") ]
     end
 
     # Enable provisioning with a shell script.

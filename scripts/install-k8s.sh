@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -exuv -o pipefail
 
-K8S_VERSION=1.15
-# TODO don't use crio before resolve https://github.com/cri-o/cri-o/issues/2547
-CRIO_VERSION=1.13
-CONTAINERD_VERSION=1.2.6
-IMG_VERSION=0.5.7
-USE_CRI="containerd" # avaiable varants "docker", "crio", "containerd"
-LOCAL_ETCD=False
-K9S_VERSION=0.7.11
+# avaiable varants "docker", "crio", "containerd"
+USE_CRI=${USE_CRI:-crio}
+K8S_VERSION=${K8S_VERSION:-1.15}
+CRIO_VERSION=${CRIO_VERSION:-1.14}
+CONTAINERD_VERSION=${CONTAINERD_VERSION:-1.2.6}
+IMG_VERSION=${IMG_VERSION:-0.5.7}
+LOCAL_ETCD=${LOCAL_ETCD:-False}
+K9S_VERSION=${K9S_VERSION:-0.7.13}
 
 export DEBIAN_FRONTEND=noninteractive
 

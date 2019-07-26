@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 set -exuv -o pipefail
+export USE_CRI=${USE_CRI:-containderd}
+export RELEASE_DATE=${RELEASE_DATE:-$(date +%Y%m%d%H%M%S)}
+export K8S_VERSION=${K8S_VERSION:-1.15.1}
+export VAGRANT_CLOUD_BOX=Slach/kubernetes-${USE_CRI}
+export VAGRANT_CLOUD_VERSION=${VAGRANT_CLOUD_VERSION:-${K8S_VERSION}-${RELEASE_DATE}}
+
 vagrant box update
 vagrant destroy -f
 vagrant up --provision
 
-VAGRANT_CLOUD_BOX=Slach/vagrant-kubernetes
-VERSION=1.15.0
+
 TMPDIR=$(mktemp -d)
 K8S_VAGRANT=${TMPDIR}/k8s-vagrant
 if [[ "$OSTYPE" == cygwin* ]]; then
@@ -47,10 +52,10 @@ else
 fi
 
 vagrant cloud auth login
-vagrant cloud publish ${VAGRANT_CLOUD_BOX} ${VERSION} virtualbox ${VBOX_FILE} -f -d "Ubuntu/bionic64 with installed (but not configured) kubernetes, kubeadm, cri-o, containerd, docker-ce, img, k9s" --release --short-description "Ubuntu/bionic64 with installed (but not configured) kubernetes, kubeadm, cri-o, containerd, docker-ce, img, k9s"
+vagrant cloud publish ${VAGRANT_CLOUD_BOX} ${VAGRANT_CLOUD_VERSION} virtualbox ${VBOX_FILE} -f -d "Ubuntu/bionic64 with installed (but not configured) kubernetes, kubeadm, cri-o, containerd, docker-ce, img, k9s" --release --short-description "Ubuntu/bionic64 with installed (but not configured) kubernetes, kubeadm, cri-o, containerd, docker-ce, img, k9s"
 rm -rfv "${K8S_VAGRANT}"
 
-vagrant box remove -f Slach/vagrant-kubernetes || true
-vagrant box add Slach/vagrant-kubernetes
+vagrant box remove -f ${VAGRANT_CLOUD_BOX} --all || true
+vagrant box add Slach/vagrant-kubernetes --force
 
 rm -rf ${TMPDIR}
