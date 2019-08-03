@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 set -exuv -o pipefail
-export USE_CRI=${USE_CRI:-containderd}
+source ./versions.sh
 export RELEASE_DATE=${RELEASE_DATE:-$(date +%Y%m%d%H%M%S)}
-export K8S_VERSION=${K8S_VERSION:-1.15.1}
 export VAGRANT_CLOUD_BOX=Slach/kubernetes-${USE_CRI}
 export VAGRANT_CLOUD_VERSION=${VAGRANT_CLOUD_VERSION:-${K8S_VERSION}-${RELEASE_DATE}}
 

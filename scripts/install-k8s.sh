@@ -1,15 +1,12 @@
 #!/usr/bin/env bash
 set -exuv -o pipefail
 
-# avaiable varants "docker", "crio", "containerd"
-USE_CRI=${USE_CRI:-crio}
-K8S_VERSION=${K8S_VERSION:-1.15}
-CRIO_VERSION=${CRIO_VERSION:-1.14}
-CONTAINERD_VERSION=${CONTAINERD_VERSION:-1.2.6}
-IMG_VERSION=${IMG_VERSION:-0.5.7}
-LOCAL_ETCD=${LOCAL_ETCD:-False}
-K9S_VERSION=${K9S_VERSION:-0.7.13}
-
+if [[ -f ../versions.sh ]]; then
+    source ../versions.sh
+else
+    VERSIONS_FILE=$(find /vagrant/ -name versions.sh)
+    source ${VERSIONS_FILE}
+fi
 export DEBIAN_FRONTEND=noninteractive
 
 swapoff -a
@@ -18,27 +15,24 @@ apt-get -y upgrade
 apt-get install -y apt-transport-https ntp
 
 #CPU performance governor
-if [ -f /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ]; then
+if [[ -f /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ]]; then
     systemctl disable ondemand
     apt-get install -y cpufrequtils
     echo 'GOVERNOR="performance"' | tee /etc/default/cpufrequtils
     cpufreq-set --governor performance
 fi
 
-# docker, cri-o, yq
-apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 8D81803C0EBFCD88 018BA5AD9DF57A4448F0E6CF8BECF1637AD8C79D 9A2D61F6BB03CED7522B8E7D6657DBE0CC86BB64
-
 # docker
-# apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 8D81803C0EBFCD88
+apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 7EA0A9C3F273FCD8
 echo "deb https://download.docker.com/linux/ubuntu bionic edge" > /etc/apt/sources.list.d/docker.list
 # cri-o
-# apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 018BA5AD9DF57A4448F0E6CF8BECF1637AD8C79D
+apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 018BA5AD9DF57A4448F0E6CF8BECF1637AD8C79D
 echo "deb http://ppa.launchpad.net/projectatomic/ppa/ubuntu bionic main" > /etc/apt/sources.list.d/crio.list
 # kubernetes
 curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
 echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" > /etc/apt/sources.list.d/kubernetes.list
 # yq
-# apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 9A2D61F6BB03CED7522B8E7D6657DBE0CC86BB64
+apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 9A2D61F6BB03CED7522B8E7D6657DBE0CC86BB64
 echo "deb http://ppa.launchpad.net/rmescandon/yq/ubuntu bionic main" > /etc/apt/sources.list.d/yq.list
 
 apt-get update
@@ -77,7 +71,7 @@ sysctl --system
 if [[ "${USE_CRI}" == "crio" ]]; then
     apt-get install -y cri-o-${CRIO_VERSION}=${CRIO_VERSION}*
 elif [[ "${USE_CRI}" == "containerd" ]]; then
-    apt-get install -y containerd.io
+    apt-get install -y containerd.io=${CONTAINERD_VERSION}*
 elif [[ "${USE_CRI}" == "docker" ]]; then
     apt-get install -y --no-install-recommends python-pip
     apt-get install -y docker-ce
@@ -94,7 +88,7 @@ systemctl disable docker || true
 systemctl disable containerd || true
 
 if [[ "${USE_CRI}" == "crio" ]]; then
-    systemctl enable crio
+        systemctl enable crio
 elif [[ "${USE_CRI}" == "containerd" ]]; then
     systemctl enable containerd
 elif [[ "${USE_CRI}" == "docker" ]]; then

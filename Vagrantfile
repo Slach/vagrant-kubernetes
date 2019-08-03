@@ -25,11 +25,20 @@ Vagrant.configure(2) do |config|
 	vb.customize [ "modifyvm", :id, "--uartmode1", "file", File.join(Dir.pwd, "vagrant-kubernetes.log") ]
     end
 
+    VERSIONS = {
+        "USE_CRI" => ENV["USE_CRI"] || "docker",
+        "K8S_VERSION" => ENV["K8S_VERSION"] || "1.15",
+        "CRIO_VERSION" => ENV["CRIO_VERSION"] || "1.15",
+        "CONTAINERD_VERSION" => ENV["CONTAINERD_VERSION"] || "1.2.7",
+        "IMG_VERSION" => ENV["IMG_VERSION"] || "0.5.7",
+        "LOCAL_ETCD" => ENV["LOCAL_ETCD"] || "False",
+        "K9S_VERSION" => ENV["K9S_VERSION"] || "0.7.13",
+    }
     # Enable provisioning with a shell script.
     if ENV['SCRIPT']
         config.vm.provision "shell", :privileged => true, path: ENV['SCRIPT']
     else
-       config.vm.provision "shell", :privileged => true, path: "scripts/install-k8s.sh"
-       config.vm.provision "shell", :privileged => true, path: "scripts/vagrant/box-clean.sh"
+       config.vm.provision "shell", :privileged => true, path: "scripts/install-k8s.sh", env: VERSIONS
+       config.vm.provision "shell", :privileged => true, path: "scripts/vagrant/box-clean.sh", env: VERSIONS
     end
 end

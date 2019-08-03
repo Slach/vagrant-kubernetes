@@ -6,7 +6,7 @@ set -exuv -o pipefail
 # /dev/sda1  *     2048 20971486 20969439  10G 83 Linux
 
 sed -e 's/\s*\([\+0-9a-zA-Z]*\).*/\1/' <<EOF | fdisk /dev/sda
-    d #
+    d # delete
     n # new
     p # primary
     1 #
