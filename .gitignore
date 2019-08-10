@@ -2,3 +2,4 @@
 .vagrant/
 *.log
 *___jb_old___
+*.pem
