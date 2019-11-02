@@ -27,12 +27,11 @@ Vagrant.configure(2) do |config|
 
     VERSIONS = {
         "USE_CRI" => ENV["USE_CRI"] || "docker",
-        "K8S_VERSION" => ENV["K8S_VERSION"] || "1.15",
+        "K8S_VERSION" => ENV["K8S_VERSION"] || "1.16.2",
         "CRIO_VERSION" => ENV["CRIO_VERSION"] || "1.15",
-        "CONTAINERD_VERSION" => ENV["CONTAINERD_VERSION"] || "1.2.7",
+        "CONTAINERD_VERSION" => ENV["CONTAINERD_VERSION"] || "1.2.10",
         "IMG_VERSION" => ENV["IMG_VERSION"] || "0.5.7",
-        "LOCAL_ETCD" => ENV["LOCAL_ETCD"] || "False",
-        "K9S_VERSION" => ENV["K9S_VERSION"] || "0.8.2",
+        "K9S_VERSION" => ENV["K9S_VERSION"] || "0.9.2",
     }
     # Enable provisioning with a shell script.
     if ENV['SCRIPT']

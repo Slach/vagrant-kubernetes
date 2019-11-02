@@ -70,6 +70,8 @@ sysctl --system
 
 if [[ "${USE_CRI}" == "crio" ]]; then
     apt-get install -y cri-o-${CRIO_VERSION}=${CRIO_VERSION}*
+    # TODO wait https://github.com/cri-o/cri-o/issues/2903
+    mkdir -p /usr/libexec/crio/conmon
 elif [[ "${USE_CRI}" == "containerd" ]]; then
     apt-get install -y containerd.io=${CONTAINERD_VERSION}*
 elif [[ "${USE_CRI}" == "docker" ]]; then
@@ -88,7 +90,7 @@ systemctl disable docker || true
 systemctl disable containerd || true
 
 if [[ "${USE_CRI}" == "crio" ]]; then
-        systemctl enable crio
+    systemctl enable crio
 elif [[ "${USE_CRI}" == "containerd" ]]; then
     systemctl enable containerd
 elif [[ "${USE_CRI}" == "docker" ]]; then
@@ -103,13 +105,6 @@ kubectl completion bash > /etc/bash_completion.d/kubectl
 
 systemctl enable kubelet
 
-if [[ "${LOCAL_ETCD}" == "False" ]]; then
-    systemctl disable etcd || true
-else
-    apt-get install -y etcd
-    systemctl enable etcd
-fi
-
 if [[ "${USE_CRI}" == "crio" ]]; then
 cat > /etc/crictl.yaml <<EOF
 runtime-endpoint: unix:///var/run/crio/crio.sock
@@ -120,7 +115,7 @@ EOF
 
     # https://github.com/kubernetes/kubeadm/issues/874, cgroup-driver=systemd DEPRECATED
     echo "KUBELET_EXTRA_ARGS=--cgroup-driver=systemd --container-runtime-endpoint=unix:///var/run/crio/crio.sock --image-pull-progress-deadline=10m --image-service-endpoint=unix:///var/run/crio/crio.sock" > /etc/default/kubelet
-    # TODO add my private registries
+    # TODO dev/4h add my private registries
     sed -i -e '/^#registries = \[$/,/^#\]$/s/^#//g' /etc/crio/crio.conf
     systemctl restart crio
     kubeadm config images pull -v 2 --cri-socket=/var/run/crio/crio.sock
