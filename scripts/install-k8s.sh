@@ -75,11 +75,11 @@ if [[ "${USE_CRI}" == "crio" ]]; then
 elif [[ "${USE_CRI}" == "containerd" ]]; then
     apt-get install -y containerd.io=${CONTAINERD_VERSION}*
 elif [[ "${USE_CRI}" == "docker" ]]; then
-    apt-get install -y --no-install-recommends python-pip
     apt-get install -y docker-ce
-    python -m pip install -U pip
-    pip install -U setuptools
-    pip2 install -U docker-compose
+    apt-get install -y --no-install-recommends python3-pip
+    python3 -m pip install -U pip
+    pip3 install -U setuptools
+    pip3 install -U docker-compose
 fi
 
 systemctl stop docker  || true

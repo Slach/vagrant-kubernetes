@@ -55,6 +55,7 @@ vagrant cloud publish ${VAGRANT_CLOUD_BOX} ${VAGRANT_CLOUD_VERSION} virtualbox $
 rm -rfv "${K8S_VAGRANT}"
 
 vagrant box remove -f ${VAGRANT_CLOUD_BOX} --all || true
+sleep 30
 vagrant box add ${VAGRANT_CLOUD_BOX} --force
 
 rm -rf ${TMPDIR}
