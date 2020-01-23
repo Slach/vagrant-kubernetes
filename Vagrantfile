@@ -30,8 +30,6 @@ Vagrant.configure(2) do |config|
         "K8S_VERSION" => ENV["K8S_VERSION"] || "1.17.1",
         "CRIO_VERSION" => ENV["CRIO_VERSION"] || "1.15",
         "CONTAINERD_VERSION" => ENV["CONTAINERD_VERSION"] || "1.2.10",
-        "IMG_VERSION" => ENV["IMG_VERSION"] || "0.5.7",
-        "K9S_VERSION" => ENV["K9S_VERSION"] || "0.12.0",
     }
     # Enable provisioning with a shell script.
     if ENV['SCRIPT']

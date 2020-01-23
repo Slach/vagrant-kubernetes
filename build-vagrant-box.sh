@@ -54,8 +54,7 @@ vagrant cloud auth login
 vagrant cloud publish ${VAGRANT_CLOUD_BOX} ${VAGRANT_CLOUD_VERSION} virtualbox ${VBOX_FILE} -f -d "Ubuntu/bionic64 with installed (but not configured) kubernetes, kubeadm, cri-o, containerd, docker-ce, img, k9s" --release --short-description "Ubuntu/bionic64 with installed (but not configured) kubernetes, kubeadm, cri-o, containerd, docker-ce, img, k9s"
 rm -rfv "${K8S_VAGRANT}"
 
-vagrant box remove -f ${VAGRANT_CLOUD_BOX} --all || true
-sleep 30
-vagrant box add ${VAGRANT_CLOUD_BOX} --force
+vagrant box add ${VAGRANT_CLOUD_BOX}
+vagrant box update --box ${VAGRANT_CLOUD_BOX}
 
 rm -rf ${TMPDIR}
