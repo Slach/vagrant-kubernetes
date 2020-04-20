@@ -26,8 +26,9 @@ fi
 apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 7EA0A9C3F273FCD8
 echo "deb https://download.docker.com/linux/ubuntu bionic edge" > /etc/apt/sources.list.d/docker.list
 # cri-o
-apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 018BA5AD9DF57A4448F0E6CF8BECF1637AD8C79D
-echo "deb http://ppa.launchpad.net/projectatomic/ppa/ubuntu bionic main" > /etc/apt/sources.list.d/crio.list
+. /etc/os-release
+wget -nv https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable/x${NAME}_${VERSION_ID}/Release.key -O- | sudo apt-key add -
+sudo sh -c "echo 'deb http://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/x${NAME}_${VERSION_ID}/ /' > /etc/apt/sources.list.d/crio.list"
 # kubernetes
 curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
 echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" > /etc/apt/sources.list.d/kubernetes.list
@@ -43,20 +44,19 @@ apt-get install -y jq yq ethtool mc htop
 # curl -sL https://github.com/dflemstr/rq/releases/download/v0.10.4/record-query-v0.10.4-x86_64-unknown-linux-gnu.tar.gz | tar --verbose -zxvf - --transform "flags=r;s|x86_64-unknown-linux-gnu/rq|rq|" -C /usr/local/bin x86_64-unknown-linux-gnu/rq
 
 # img, TODO make .deb package?
-IMG_VERSION=$(curl -sL https://github.com/genuinetools/img/releases/latest -H "Accept: application/json" | jq .tag_name)
+IMG_VERSION=$(curl -sL https://github.com/genuinetools/img/releases/latest -H "Accept: application/json" | jq -r .tag_name)
 curl -sL -o /usr/local/bin/img https://github.com/genuinetools/img/releases/download/${IMG_VERSION}/img-linux-amd64
 curl -sL -o /usr/local/bin/img.sha256 https://github.com/genuinetools/img/releases/download/${IMG_VERSION}/img-linux-amd64.sha256
 sed -i "s/\/home\/travis\/gopath\/src\/github.com\/genuinetools\/img\/cross\/img\-linux\-amd64/\/usr\/local\/bin\/img/g" /usr/local/bin/img.sha256
 sha256sum -c /usr/local/bin/img.sha256
 
 # k9s
-K9S_VERSION=$(curl -sL https://github.com/derailed/k9s/releases/latest -H "Accept: application/json" | jq .tag_name)
-K9S_VERSION=${K9S_VERSION//v/}
-curl -sL -o /usr/local/bin/k9s_${K9S_VERSION}_Linux_x86_64.tar.gz https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/k9s_${K9S_VERSION}_Linux_x86_64.tar.gz
-curl -sL https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/checksums.txt | grep Linux_x86_64.tar.gz > /usr/local/bin/k9s.sha256
-sed -i "s/k9s_${K9S_VERSION}_Linux_x86_64.tar.gz/\/usr\/local\/bin\/k9s_${K9S_VERSION}_Linux_x86_64.tar.gz/g" /usr/local/bin/k9s.sha256
+K9S_VERSION=$(curl -sL https://github.com/derailed/k9s/releases/latest -H "Accept: application/json" | jq -r .tag_name)
+curl -sL -o /usr/local/bin/k9s_Linux_x86_64.tar.gz https://github.com/derailed/k9s/releases/download/${K9S_VERSION}/k9s_Linux_x86_64.tar.gz
+curl -sL https://github.com/derailed/k9s/releases/download/${K9S_VERSION}/checksums.txt | grep Linux_x86_64.tar.gz > /usr/local/bin/k9s.sha256
+sed -i -e "s/k9s_Linux_x86_64\.tar\.gz/\\/usr\\/local\\/bin\\/k9s_Linux_x86_64\\.tar\\.gz/g" /usr/local/bin/k9s.sha256
 sha256sum -c /usr/local/bin/k9s.sha256
-tar --verbose -zxvf /usr/local/bin/k9s_${K9S_VERSION}_Linux_x86_64.tar.gz -C /usr/local/bin k9s
+tar --verbose -zxvf /usr/local/bin/k9s_Linux_x86_64.tar.gz -C /usr/local/bin k9s
 
 
 apt-get install -y ipvsadm
@@ -73,10 +73,8 @@ sysctl --system
 
 if [[ "${USE_CRI}" == "crio" ]]; then
     apt-get install -y cri-o-${CRIO_VERSION}=${CRIO_VERSION}*
-    # TODO wait https://github.com/cri-o/cri-o/issues/2903
-    mkdir -p /usr/libexec/crio/conmon
 elif [[ "${USE_CRI}" == "containerd" ]]; then
-    apt-get install -y containerd.io=${CONTAINERD_VERSION}*
+    apt-get install -y containerd=${CONTAINERD_VERSION}*
 elif [[ "${USE_CRI}" == "docker" ]]; then
     apt-get install -y docker-ce
     apt-get install -y --no-install-recommends python3-pip
@@ -118,6 +116,11 @@ EOF
 
     # https://github.com/kubernetes/kubeadm/issues/874, cgroup-driver=systemd DEPRECATED
     echo "KUBELET_EXTRA_ARGS=--cgroup-driver=systemd --container-runtime-endpoint=unix:///var/run/crio/crio.sock --image-pull-progress-deadline=10m --image-service-endpoint=unix:///var/run/crio/crio.sock" > /etc/default/kubelet
+
+    # TODO wait to solve https://github.com/cri-o/cri-o/issues/3504
+    CRIO_APT_VERSION=$(apt show cri-o-1.17 | grep Version | cut -d " " -f 2 | cut -d "~" -f 1)
+    sed -i -e "s/crio-default/crio-default-${CRIO_APT_VERSION}/g" /etc/crio/crio.conf
+
     # TODO dev/4h add my private registries
     sed -i -e '/^#registries = \[$/,/^#\]$/s/^#//g' /etc/crio/crio.conf
     systemctl restart crio
@@ -133,6 +136,7 @@ debug: false
 EOF
 
     echo "KUBELET_EXTRA_ARGS=--container-runtime-endpoint=unix:///run/containerd/containerd.sock --image-pull-progress-deadline=10m" > /etc/default/kubelet
+    mkdir -p /etc/containerd/
     containerd config default > /etc/containerd/config.toml
     systemctl restart containerd
     kubeadm config images pull -v 2 --cri-socket=/run/containerd/containerd.sock
